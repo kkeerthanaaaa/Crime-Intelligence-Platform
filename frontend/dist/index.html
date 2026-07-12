@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+    <script>
+      window.addEventListener('error', function(event) {
+        var errorDiv = document.getElementById('error-display');
+        if (!errorDiv) {
+          errorDiv = document.createElement('div');
+          errorDiv.id = 'error-display';
+          errorDiv.style.position = 'fixed';
+          errorDiv.style.top = '0';
+          errorDiv.style.left = '0';
+          errorDiv.style.width = '100%';
+          errorDiv.style.backgroundColor = '#ffcccc';
+          errorDiv.style.color = '#990000';
+          errorDiv.style.padding = '20px';
+          errorDiv.style.zIndex = '99999';
+          errorDiv.style.fontFamily = 'monospace';
+          errorDiv.style.whiteSpace = 'pre-wrap';
+          errorDiv.style.boxSizing = 'border-box';
+          document.body.appendChild(errorDiv);
+        }
+        errorDiv.textContent += '\nError: ' + event.message + ' at ' + event.filename + ':' + event.lineno + ':' + event.colno + '\n' + (event.error ? event.error.stack : '');
+      });
+      window.addEventListener('unhandledrejection', function(event) {
+        var errorDiv = document.getElementById('error-display');
+        if (!errorDiv) {
+          errorDiv = document.createElement('div');
+          errorDiv.id = 'error-display';
+          errorDiv.style.position = 'fixed';
+          errorDiv.style.top = '0';
+          errorDiv.style.left = '0';
+          errorDiv.style.width = '100%';
+          errorDiv.style.backgroundColor = '#ffcccc';
+          errorDiv.style.color = '#990000';
+          errorDiv.style.padding = '20px';
+          errorDiv.style.zIndex = '99999';
+          errorDiv.style.fontFamily = 'monospace';
+          errorDiv.style.whiteSpace = 'pre-wrap';
+          errorDiv.style.boxSizing = 'border-box';
+          document.body.appendChild(errorDiv);
+        }
+        errorDiv.textContent += '\nUnhandled Promise Rejection: ' + event.reason;
+      });
+    </script>
+    <script type="module" crossorigin src="/assets/index-Kx1tcf6r.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DUV5tFHM.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

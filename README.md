@@ -135,7 +135,33 @@ actually fly the map smoothly, does the pulse animation render as expected) — 
 needs a real browser, which isn't available in this environment. Do a visual pass
 yourself once you run it locally before the demo.
 
+## Blank-page fix (if you hit this after Phase 3)
+
+If you saw a blank page after adding the network graph: I found and fixed two real
+issues in the `react-force-graph` package:
+
+1. **Wrong import style** — I'd written `import { ForceGraph2D } from "react-force-graph"`
+   (named import), but the package actually exports it as a **default** export. This
+   alone would throw and blank the whole page, since the broken import sits at the
+   top of a file that's loaded regardless of which tab you're on.
+2. **Switched to `react-force-graph-2d`** instead of the umbrella `react-force-graph`
+   package. The umbrella package bundles 2D **and** 3D/VR/AR support via three.js, and
+   pulls in a fragile `ssh://git@github.com/...` dependency (`three-bmfont-text`) that
+   can silently fail to install on machines without SSH keys configured for GitHub.
+   Since we only ever use `ForceGraph2D`, switching to the dedicated 2D package
+   removes three.js entirely, drops the bundle from 2.3MB to 547KB, and removes the
+   git-SSH fragility.
+
+**I could not fully verify this in a real browser** — this sandbox has no browser
+available, and my attempt to reproduce the crash with a headless jsdom render hit
+tooling limitations of its own (Node's ESM/CJS interop with Vite's SSR module loader).
+So: please pull this update, run `npm install` fresh (to drop the old package and
+pick up `react-force-graph-2d`), and confirm the page renders. **If it's still blank,
+open your browser's dev console (F12 → Console tab) and send me the exact error** —
+that's the fastest path to the real fix if this wasn't it.
+
 ## Next: Phase 4
+
 
 Explainable predictive risk scoring (XGBoost/LightGBM + SHAP) — see the build spec doc
 for full detail. This is the most important remaining phase; take the time to validate
