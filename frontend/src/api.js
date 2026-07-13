@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://127.0.0.1:8000";
 
 async function getJSON(path) {
   const res = await fetch(`${API_BASE}${path}`);

@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mo_clustering import compute_mo_clusters
 
 DB_CONFIG = dict(
-    dbname="ksp_crime", user="postgres", password="postgres",
+    dbname="ksp_crime", user="postgres", password="Alliance@123",
     host="localhost", port=5432,
 )
 
