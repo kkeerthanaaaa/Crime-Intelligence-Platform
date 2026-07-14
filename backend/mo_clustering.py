@@ -33,9 +33,12 @@ def _build_feature_vector(records):
     """Average one-hot MO encoding across a suspect's incidents."""
     vec = np.zeros(VECTOR_DIM)
     for r in records:
-        vec[WEAPONS.index(r["weapon_or_method"])] += 1
-        vec[len(WEAPONS) + TARGETS.index(r["target_type"])] += 1
-        vec[len(WEAPONS) + len(TARGETS) + ESCAPES.index(r["escape_pattern"])] += 1
+        if r["weapon_or_method"] in WEAPONS:
+            vec[WEAPONS.index(r["weapon_or_method"])] += 1
+        if r["target_type"] in TARGETS:
+            vec[len(WEAPONS) + TARGETS.index(r["target_type"])] += 1
+        if r["escape_pattern"] in ESCAPES:
+            vec[len(WEAPONS) + len(TARGETS) + ESCAPES.index(r["escape_pattern"])] += 1
         is_night = 1 if (r["hour"] >= 22 or r["hour"] < 5) else 0
         vec[len(WEAPONS) + len(TARGETS) + len(ESCAPES) + is_night] += 1
     return vec / len(records)

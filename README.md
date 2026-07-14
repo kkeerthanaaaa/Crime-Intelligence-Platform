@@ -135,7 +135,47 @@ actually fly the map smoothly, does the pulse animation render as expected) — 
 needs a real browser, which isn't available in this environment. Do a visual pass
 yourself once you run it locally before the demo.
 
-## Blank-page fix (if you hit this after Phase 3)
+**Phase 4:**
+- `ml/risk_scoring.ipynb` — the actual, **executed** validation notebook (run it
+  yourself to see it work, or read the baked-in outputs). Trains an XGBoost regressor
+  predicting each station's weekly incident count, using only lagged features (no data
+  leakage — genuine forecasting, not fitting a week's features to that same week's
+  count), with a chronological train/test split (not random, which would be invalid
+  for forecasting)
+- **Validated against known injected patterns, honestly, including one that came back
+  weaker than hoped**: (1) feature importance correctly ranks `is_festival_season` and
+  `mix_Vehicle Theft` as the top 2 features — matching the injected seasonal spike and
+  static hotspot; (2) Whitefield PS is correctly predicted as highest-average-risk
+  station; (3) the Jayanagar recent-Robbery-spike pattern showed a **weaker** aggregate
+  signal at first check (diluted because the model predicts *total* station volume
+  across all 7 crime types, and a Robbery-specific spike is a small fraction of that
+  total) — investigated further with SHAP rather than accepted or hidden, and by the
+  final injected-spike week, `mix_Robbery` is confirmed as by far the largest SHAP
+  contributor. **Conclusion documented in the notebook**: this risk model and Phase 2's
+  red-zone z-score alerting are complementary tools, not redundant — z-score alerting
+  catches immediate week-to-week spikes, this model catches slower-building structural
+  risk (chronic hotspots, seasonal patterns). Say exactly this in the demo
+- `backend/risk_features.py` — feature engineering shared identically between the
+  training notebook and the live API, specifically to avoid train/serve skew (a common
+  real-world ML bug where live serving code computes features slightly differently
+  than training did)
+- `backend/risk_explain.py` — aggregates 17 raw SHAP feature values into 5
+  human-readable categories (recent trend, time-of-day, weekly pattern, seasonal
+  factor, crime-type mix) with percentages, plus a generated plain-English sentence.
+  Shared between the notebook and the API
+- `/api/risk-score` — tested end-to-end: computes live features from current DB state,
+  runs the model, generates SHAP explanations, returns per-station risk ranked highest
+  first. **Real bug caught and fixed**: the first version crashed with a JSON
+  serialization error because SHAP/numpy return `float32` values, which FastAPI's
+  encoder can't serialize — fixed by explicit `float()` casts in `risk_explain.py`
+- Frontend: new Risk tab with a station ranking list, the plain-English explanation
+  sentence, and a SHAP contribution bar chart (recharts — the library named in the
+  original spec) color-coded by feature category
+- To regenerate the model from scratch: `cd ml && jupyter nbconvert --to notebook
+  --execute risk_scoring.ipynb`, then copy `risk_model.json`, `feature_cols.json` into
+  `backend/`
+
+
 
 If you saw a blank page after adding the network graph: I found and fixed two real
 issues in the `react-force-graph` package:
@@ -160,10 +200,46 @@ pick up `react-force-graph-2d`), and confirm the page renders. **If it's still b
 open your browser's dev console (F12 → Console tab) and send me the exact error** —
 that's the fastest path to the real fix if this wasn't it.
 
-## Next: Phase 4
+**Ground-truth recovery dashboard (added on request, incorporated into the existing
+Risk tab rather than a separate duplicate system):**
+- `backend/ground_truth_recovery.py` — imports the actual injected constants directly
+  from `generate_data.py` (never re-typed, so it can't drift out of sync), and computes
+  two **honestly separated** kinds of recovery: **data-level** (observed night/day and
+  weekend/weekday rate ratios computed directly from the incidents table via SQL — does
+  NOT involve the trained model) and **model-level** (counterfactual predictions and
+  station-average comparisons from the trained model). Kept separate deliberately —
+  the risk model predicts total station volume across all 7 crime types, so it was
+  never architecturally able to learn a clean, isolated "Burglary is 2.2x more common
+  at night" coefficient the way a per-crime-type model would. Presenting a per-crime
+  data pattern as if the model "learned" it would be overclaiming.
+- **A real, significant bug found while building this**: the night/day observed ratios
+  came back nearly identical (~4.4x) across three crime types with different injected
+  multipliers (2.2x, 1.9x, 1.5x) — which shouldn't happen if the multipliers were
+  actually wired in. Investigated and found that `generate_data.py`'s `random_hour()`
+  only checked crime-type *membership* in `NIGHT_MULTIPLIER`, never the actual
+  multiplier *value* — applying a flat 65% night-probability to all three regardless
+  of their claimed multiplier. **This had been silently wrong since Phase 1** and
+  wasn't caught by earlier testing because those checks only confirmed "some night
+  skew exists," not that it matched the specific claimed multiplier per crime type.
+  Fixed by deriving the correct per-crime-type night-probability from each multiplier
+  algebraically (solving for P(night) that produces the target rate ratio), data
+  regenerated, and **all of Phases 1-4 re-verified against the corrected data**:
+  Phase 2 red-zone alerting still correctly flags the same station/crime pair, Phase 3
+  MO clustering still correctly isolates the same 5 ring suspects, Phase 4's model
+  retrained and re-validated with the same conclusions. Night/day ratios now match
+  almost exactly: Burglary 2.28 vs injected 2.2, Vehicle Theft 1.89 vs 1.9, Robbery 1.5
+  vs 1.5 (weekend/weekday ratios were already accurate before this fix: 1.82/1.51/1.33
+  vs injected 1.8/1.6/1.3)
+- `/api/ground-truth-recovery` — tested, another `float32` JSON-serialization bug
+  caught and fixed the same way as the earlier one (explicit `float()` casts)
+- Frontend: new section in the Risk tab showing both recovery tables, clearly labeled
+  by type, with the honesty notes visible inline (not hidden in code comments only)
 
 
-Explainable predictive risk scoring (XGBoost/LightGBM + SHAP) — see the build spec doc
-for full detail. This is the most important remaining phase; take the time to validate
-it in a notebook against the injected patterns in generate_data.py before wiring it
-into the app.
+
+## Next: Phase 5
+
+Polish & integration — consistent styling, loading/error states, the role-toggle
+mockup (with the required demo caveat that it's a design gesture, not real auth), and
+the README sections on production data-ingestion story and privacy/access-control
+design intent. See the build spec doc for full detail.

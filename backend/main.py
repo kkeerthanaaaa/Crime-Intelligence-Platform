@@ -13,6 +13,9 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from mo_clustering import compute_mo_clusters
+from risk_features import build_model_features, FEATURE_COLS
+from risk_explain import aggregate_shap_to_groups, generate_explanation_sentence
+from ground_truth_recovery import compute_data_level_recovery, compute_model_level_recovery
 
 DB_CONFIG = dict(
     dbname="ksp_crime", user="postgres", password="Alliance@123",
@@ -20,6 +23,20 @@ DB_CONFIG = dict(
 )
 
 app = FastAPI(title="KSP Crime Intelligence API")
+
+# Load the risk model once at startup rather than per-request. If risk_model.json
+# is missing (e.g. someone runs the API without having run the ml/ notebook first),
+# we degrade gracefully rather than crashing the whole API on import.
+_risk_model = None
+_shap_explainer = None
+try:
+    from xgboost import XGBRegressor
+    import shap
+    _risk_model = XGBRegressor()
+    _risk_model.load_model("risk_model.json")
+    _shap_explainer = shap.TreeExplainer(_risk_model)
+except Exception as e:
+    print(f"WARNING: risk model not loaded ({e}). /api/risk-score will return an error.")
 
 # Wide open for hackathon dev; tighten this before any real deployment.
 app.add_middleware(
@@ -366,6 +383,71 @@ def get_network(top_n_suspects: int = 12, max_incidents_per_suspect: int = 8, di
         "top_n_suspects": top_n_suspects,
         "max_incidents_per_suspect": max_incidents_per_suspect,
     }
+
+
+@app.get("/api/ground-truth-recovery")
+def get_ground_truth_recovery():
+    """Compares observed data patterns and model-predicted patterns against the
+    known ground-truth multipliers injected in generate_data.py. See
+    ground_truth_recovery.py for why data-level and model-level recovery are kept
+    honestly separate rather than blurred together.
+    """
+    if _risk_model is None:
+        return {"error": "Risk model not loaded."}
+
+    conn = get_conn()
+    data_level = compute_data_level_recovery(conn)
+    conn.close()
+
+    import pandas as pd
+    model_df = pd.read_pickle("model_df.pkl")
+    model_level = compute_model_level_recovery(_risk_model, model_df, FEATURE_COLS)
+
+    return {"data_level": data_level, "model_level": model_level}
+
+
+@app.get("/api/risk-score")
+def get_risk_scores():
+    """Latest predicted weekly risk score for every station, with SHAP-based
+    explanation grouped into human-readable categories. See ml/risk_scoring.ipynb
+    for how this model was trained and validated against known injected patterns
+    before being wired in here.
+    """
+    if _risk_model is None:
+        return {"error": "Risk model not loaded. Run the ml/ notebook first and copy risk_model.json, feature_cols.json into backend/."}
+
+    conn = get_conn()
+    df = build_model_features(conn)
+    conn.close()
+
+    if df.empty:
+        return {"stations": []}
+
+    df["predicted"] = _risk_model.predict(df[FEATURE_COLS])
+    shap_values = _shap_explainer.shap_values(df[FEATURE_COLS])
+    base_value = float(_shap_explainer.expected_value)
+
+    # Take the most recent week per station as the "current" risk score
+    latest = df.sort_values("week").groupby("station_id").tail(1)
+
+    results = []
+    for idx, row in latest.iterrows():
+        pos = df.index.get_loc(idx)
+        grouped = aggregate_shap_to_groups(shap_values[pos], FEATURE_COLS)
+        sentence = generate_explanation_sentence(row["station_name"], row["predicted"], base_value, grouped)
+        results.append({
+            "station_id": int(row["station_id"]),
+            "station_name": row["station_name"],
+            "district": row["district"],
+            "week": row["week"].isoformat(),
+            "predicted_weekly_risk": round(float(row["predicted"]), 1),
+            "baseline": round(base_value, 1),
+            "shap_groups": grouped,
+            "explanation": sentence,
+        })
+
+    results.sort(key=lambda r: r["predicted_weekly_risk"], reverse=True)
+    return {"baseline": round(base_value, 1), "stations": results}
 
 
 @app.get("/api/stations")

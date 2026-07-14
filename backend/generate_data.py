@@ -93,9 +93,29 @@ def daily_rate(crime_type, day, station_name):
     return rate
 
 
+def _night_probability_for_ratio(target_ratio, night_hours=7, day_hours=17):
+    """Given a target (night_rate / day_rate) ratio, where rate = count / clock-hours,
+    solve for the P(incident occurs at night) that produces it:
+        M = (p*N/night_hours) / ((1-p)*N/day_hours)
+        => p = M*night_hours / (day_hours + M*night_hours)
+    """
+    return (target_ratio * night_hours) / (day_hours + target_ratio * night_hours)
+
+
+# Precompute per-crime-type night probability from the actual injected multiplier.
+# BUG FIX: the original version of this function only checked crime_type membership
+# in NIGHT_MULTIPLIER (a flat 65% for all three crime types), never actually using
+# the specific multiplier value (2.2 / 1.9 / 1.5) — meaning all three crime types
+# ended up with nearly identical night skew despite claiming different multipliers.
+# Caught when building a ground-truth recovery dashboard that compared observed data
+# ratios against the injected values and found them suspiciously identical.
+_NIGHT_PROBABILITY = {ct: _night_probability_for_ratio(mult) for ct, mult in NIGHT_MULTIPLIER.items()}
+
+
 def random_hour(crime_type):
-    """Pick an hour, skewing certain crime types toward night (22:00-04:00)."""
-    if crime_type in NIGHT_MULTIPLIER and random.random() < 0.65:
+    """Pick an hour, skewing certain crime types toward night (22:00-04:00) by the
+    exact amount needed to hit that crime type's injected NIGHT_MULTIPLIER."""
+    if crime_type in _NIGHT_PROBABILITY and random.random() < _NIGHT_PROBABILITY[crime_type]:
         return random.choice(list(range(22, 24)) + list(range(0, 5)))
     return random.randint(5, 21)
 

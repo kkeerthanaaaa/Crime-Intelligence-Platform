@@ -4,3 +4,6 @@ psycopg2-binary
 numpy
 faker
 scikit-learn
+xgboost
+shap
+pandas

@@ -6,6 +6,7 @@ import { api } from "./api";
 import HeatmapLayer from "./components/HeatmapLayer";
 import FlyToBounds from "./components/FlyToBounds";
 import NetworkGraph from "./components/NetworkGraph";
+import RiskDashboard from "./components/RiskDashboard";
 import { densityColor, densityRadius, boundsForStations } from "./utils";
 
 const KARNATAKA_CENTER = [14.5, 75.7];
@@ -108,6 +109,9 @@ function App() {
           </button>
           <button className={tab === "network" ? "active" : ""} onClick={() => setTab("network")}>
             🕸 Network
+          </button>
+          <button className={tab === "risk" ? "active" : ""} onClick={() => setTab("risk")}>
+            📊 Risk
           </button>
         </div>
 
@@ -286,6 +290,12 @@ function App() {
       {tab === "network" && (
         <main className="map-area">
           <NetworkGraph topN={networkTopN} maxIncidentsPerSuspect={networkMaxIncidents} district={selectedDistrict} />
+        </main>
+      )}
+
+      {tab === "risk" && (
+        <main className="map-area">
+          <RiskDashboard />
         </main>
       )}
     </div>

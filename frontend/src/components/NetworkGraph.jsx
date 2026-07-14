@@ -32,7 +32,7 @@ export default function NetworkGraph({ topN, maxIncidentsPerSuspect, district })
     params.set("max_incidents_per_suspect", maxIncidentsPerSuspect);
     if (district) params.set("district", district);
 
-    fetch(`http://127.0.0.1:8000/api/network?${params.toString()}`)
+    fetch(`http://localhost:8000/api/network?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error(`API returned ${res.status}`);
         return res.json();

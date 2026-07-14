@@ -1,0 +1,20 @@
+# Dependency directories
+node_modules/
+venv/
+.venv/
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pkl
+*.json
+!feature_cols.json
+!risk_model.json
+
+# Build outputs
+frontend/dist/
+
+# IDE files
+.vscode/
+.idea/
+.DS_Store
