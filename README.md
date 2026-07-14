@@ -237,9 +237,58 @@ Risk tab rather than a separate duplicate system):**
 
 
 
-## Next: Phase 5
+**Phase 5:**
+- Role toggle (Station Officer vs SCRB Analyst) added as a visible design gesture in
+  the sidebar. Switching to Officer: restricts the tab bar to Map only (Network/Risk
+  tabs show a 🔒 and disabled state with a tooltip), and locks district drill-down to
+  a single assigned district (hardcoded to "Bengaluru Urban" for the demo — confirmed
+  this matches a real district name in the data before shipping it). **This is
+  explicitly NOT real access control** — there's no authentication anywhere in this
+  API, and the caveat text is visible in the UI itself, not just in this README, so it
+  can't be mistaken for something it isn't during a demo
+- Unified error/loading state styling across Map, Network, and Risk tabs into shared
+  `.error-banner` / `.loading-banner` CSS classes (previously each view had
+  near-identical but separately-written inline styles)
+- Refactored `RiskDashboard.jsx` off heavy inline styling onto named CSS classes,
+  matching the styling approach used elsewhere in the app
+- See below for the production data-ingestion story and privacy/access-control design
+  intent this demo's role-toggle and synthetic-data choices stand in for
 
-Polish & integration — consistent styling, loading/error states, the role-toggle
-mockup (with the required demo caveat that it's a design gesture, not real auth), and
-the README sections on production data-ingestion story and privacy/access-control
-design intent. See the build spec doc for full detail.
+## Production data-ingestion story (not implemented — design intent only)
+
+This demo uses synthetic data generated directly into Postgres. A production version
+connecting to KSP's real CCTNS (Crime and Criminal Tracking Network & Systems) or
+station-level FIR systems would need:
+
+- **A normalization/ETL layer** between CCTNS and this platform's schema — real FIR
+  records won't cleanly map to `weapon_or_method` / `target_type` / `escape_pattern`
+  as clean categorical fields the way synthetic data does; that would need to come
+  from structured fields in the FIR where available, and NLP-based extraction from
+  free-text FIR narrative sections where it isn't (a real, nontrivial project on its
+  own — flagged here rather than hand-waved as "easy")
+- **Incremental sync**, not batch reload — likely a scheduled job polling CCTNS for
+  new/updated FIRs, or an event-driven feed if CCTNS exposes one, feeding into the same
+  `incidents` table so the red-zone alerting and risk model stay current
+- **Data quality gates** before ingestion — real FIR data will have missing fields,
+  inconsistent station naming, and duplicate entries in ways synthetic data doesn't
+
+## Privacy & access-control design intent (not implemented — design intent only)
+
+The Officer/Analyst toggle in this demo is a **visual mockup only** — there is no
+authentication on this API, and anyone can call any endpoint. A production version
+would need:
+
+- **Real authenticated sessions** (e.g. JWT-based, issued after login against KSP's
+  existing personnel directory/AD, not a new credential system)
+- **Server-side role enforcement**, not client-side — every API endpoint would check
+  the authenticated user's role and jurisdiction before querying, not just the
+  frontend choosing what to display. Concretely: row-level security policies in
+  Postgres keyed to the requesting officer's assigned station/district, so a station
+  officer's queries are restricted at the database layer, not just hidden in the UI
+- **Audit logging** — every query against sensitive data (suspect records, victim
+  PII) logged with who queried what and when, for accountability under law-enforcement
+  data governance requirements
+- **Data minimization for lower roles** — a station officer's view should actively
+  exclude victim PII fields they don't need for routine work, not just hide them in
+  the UI while still sending them over the API response
+

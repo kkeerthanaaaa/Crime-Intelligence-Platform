@@ -72,7 +72,7 @@ export default function NetworkGraph({ topN, maxIncidentsPerSuspect, district })
     return counts;
   }, [graphData.nodes]);
 
-  if (error) return <p style={{ color: "red", padding: 20 }}>Error: {error}</p>;
+  if (error) return <p className="error-banner">⚠ Error: {error}</p>;
 
   return (
     <div style={{ display: "flex", height: "100%", width: "100%" }}>

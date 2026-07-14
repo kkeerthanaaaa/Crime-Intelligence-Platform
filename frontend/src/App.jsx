@@ -16,7 +16,13 @@ const KARNATAKA_BOUNDS = [
 ];
 
 function App() {
-  const [tab, setTab] = useState("map"); // "map" | "network"
+  const [tab, setTab] = useState("map"); // "map" | "network" | "risk"
+  const [role, setRole] = useState("analyst"); // "analyst" | "officer" — demo-only, see README
+
+  // Officer role is restricted to a single assigned district and the Map tab only.
+  // This is a fixed demo assignment (not tied to real auth) — see README for the
+  // production design intent this stands in for.
+  const OFFICER_ASSIGNED_DISTRICT = "Bengaluru Urban";
 
   const [districts, setDistricts] = useState([]);
   const [crimeTypes, setCrimeTypes] = useState([]);
@@ -94,24 +100,61 @@ function App() {
     [selectedDistrict, stations]
   );
 
+  // Enforce the officer role's restrictions: force back to Map tab and lock
+  // district selection to their assigned district. This is a client-side design
+  // gesture, not real access control — the API itself has no auth in this demo.
+  useEffect(() => {
+    if (role === "officer") {
+      setTab("map");
+      setSelectedDistrict(OFFICER_ASSIGNED_DISTRICT);
+    }
+  }, [role]);
+
   const redzoneStationIds = useMemo(() => new Set(redzones.map((r) => r.station_id)), [redzones]);
 
-  if (error) return <p style={{ padding: 20, color: "red" }}>Error: {error}</p>;
+  if (error) return <p className="error-banner">⚠ Error: {error}</p>;
 
   return (
     <div className="app-layout">
       <aside className="sidebar">
         <h2>KSP Crime Intelligence</h2>
 
+        <div className="role-toggle">
+          <span className="muted" style={{ fontSize: 11 }}>VIEWING AS</span>
+          <div className="tab-row" style={{ marginTop: 4 }}>
+            <button className={role === "officer" ? "active" : ""} onClick={() => setRole("officer")}>
+              👮 Station Officer
+            </button>
+            <button className={role === "analyst" ? "active" : ""} onClick={() => setRole("analyst")}>
+              🔍 SCRB Analyst
+            </button>
+          </div>
+          <p className="muted role-caveat">
+            Demo-only view switch — no real authentication behind this. Production
+            would enforce roles server-side via authenticated sessions and row-level
+            DB security; see README "Privacy & access-control design intent."
+          </p>
+        </div>
+
         <div className="tab-row">
           <button className={tab === "map" ? "active" : ""} onClick={() => setTab("map")}>
             🗺 Map
           </button>
-          <button className={tab === "network" ? "active" : ""} onClick={() => setTab("network")}>
-            🕸 Network
+          <button
+            className={tab === "network" ? "active" : ""}
+            disabled={role === "officer"}
+            title={role === "officer" ? "Analyst access only (demo restriction)" : undefined}
+            onClick={() => role === "analyst" && setTab("network")}
+          >
+            {role === "officer" ? "🔒" : "🕸"} Network
           </button>
-          <button className={tab === "risk" ? "active" : ""} onClick={() => setTab("risk")}>
-            📊 Risk
+          <button
+            className={tab === "risk" ? "active" : ""}
+            disabled={role === "officer"}
+            title={role === "officer" ? "Analyst access only (demo restriction)" : undefined}
+            onClick={() => role === "analyst" && setTab("risk")}
+          >
+            {role === "officer" ? "🔒" : "📊"} Risk
           </button>
         </div>
 
@@ -119,22 +162,33 @@ function App() {
           <>
             <section>
               <h3>District drill-down</h3>
+              {role === "officer" && (
+                <p className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
+                  Locked to your assigned jurisdiction (demo restriction).
+                </p>
+              )}
               <ul className="district-list">
                 <li
                   className={selectedDistrict === null ? "active" : ""}
-                  onClick={() => setSelectedDistrict(null)}
+                  aria-disabled={role === "officer"}
+                  onClick={() => role === "analyst" && setSelectedDistrict(null)}
+                  style={role === "officer" ? { opacity: 0.35, cursor: "not-allowed" } : undefined}
                 >
                   All districts
                 </li>
-                {districts.map((d) => (
-                  <li
-                    key={d}
-                    className={selectedDistrict === d ? "active" : ""}
-                    onClick={() => setSelectedDistrict(d)}
-                  >
-                    {d}
-                  </li>
-                ))}
+                {districts.map((d) => {
+                  const isLocked = role === "officer" && d !== OFFICER_ASSIGNED_DISTRICT;
+                  return (
+                    <li
+                      key={d}
+                      className={selectedDistrict === d ? "active" : ""}
+                      onClick={() => !isLocked && setSelectedDistrict(d)}
+                      style={isLocked ? { opacity: 0.35, cursor: "not-allowed" } : undefined}
+                    >
+                      {d}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
 
