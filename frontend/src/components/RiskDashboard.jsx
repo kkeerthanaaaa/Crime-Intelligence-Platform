@@ -35,7 +35,7 @@ export default function RiskDashboard() {
   }, []);
 
   if (loading) return <div className="loading-banner">Loading risk model...</div>;
-  if (error) return <p style={{ color: "red", padding: 20 }}>Error: {error}</p>;
+  if (error) return <p className="error-banner">⚠ Error: {error}</p>;
   if (!data || data.stations.length === 0) return <p style={{ padding: 20 }}>No risk data available.</p>;
 
   const selectedStation = data.stations.find((s) => s.station_id === selected) || data.stations[0];
@@ -47,41 +47,34 @@ export default function RiskDashboard() {
   }));
 
   return (
-    <div style={{ display: "flex", height: "100%", width: "100%", overflow: "hidden" }}>
-      <div style={{ width: 280, flexShrink: 0, overflowY: "auto", borderRight: "1px solid #ddd", background: "#fafafa" }}>
-        <div style={{ padding: 14 }}>
-          <h4 style={{ margin: "0 0 4px" }}>Station risk ranking</h4>
+    <div className="risk-dashboard-layout">
+      <div className="risk-station-list-panel">
+        <div className="risk-station-list-header">
+          <h4>Station risk ranking</h4>
           <p className="muted" style={{ fontSize: 11 }}>
             Predicted weekly incident count vs baseline of {data.baseline}. Sorted highest risk first.
           </p>
         </div>
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className="risk-station-list">
           {data.stations.map((s) => (
             <li
               key={s.station_id}
               onClick={() => setSelected(s.station_id)}
-              style={{
-                padding: "10px 14px",
-                cursor: "pointer",
-                background: s.station_id === selected ? "#fde0dd" : "transparent",
-                borderBottom: "1px solid #eee",
-              }}
+              className={s.station_id === selected ? "risk-station-item active" : "risk-station-item"}
             >
               <strong>{s.station_name}</strong>
-              <div style={{ fontSize: 12, color: "#666" }}>
+              <div className="risk-station-item-detail">
                 {s.predicted_weekly_risk} incidents/wk
-                {s.predicted_weekly_risk > data.baseline * 1.1 && <span style={{ color: "#de2d26" }}> ⚠ elevated</span>}
+                {s.predicted_weekly_risk > data.baseline * 1.1 && <span className="risk-elevated-tag"> ⚠ elevated</span>}
               </div>
             </li>
           ))}
         </ul>
       </div>
 
-      <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
+      <div className="risk-detail-panel">
         <h3>{selectedStation.station_name} ({selectedStation.district})</h3>
-        <p style={{ fontSize: 15, lineHeight: 1.5, background: "#f7f7f9", padding: 12, borderRadius: 8 }}>
-          {selectedStation.explanation}
-        </p>
+        <p className="risk-explanation-box">{selectedStation.explanation}</p>
 
         <h4>Feature contribution breakdown (SHAP)</h4>
         <p className="muted" style={{ fontSize: 12 }}>
@@ -110,7 +103,7 @@ export default function RiskDashboard() {
         </p>
 
         {gtr && !gtr.error && (
-          <div style={{ marginTop: 28 }}>
+          <div className="gtr-section">
             <h4>Ground-truth pattern recovery</h4>
             <p className="muted" style={{ fontSize: 12 }}>
               Compares what's actually in the data (and what the model predicts) against
@@ -119,21 +112,23 @@ export default function RiskDashboard() {
               overclaim what the model itself learned.
             </p>
 
-            <h5 style={{ marginBottom: 4 }}>Data-level recovery <span className="muted" style={{ fontWeight: 400 }}>(directly from incidents, not the model)</span></h5>
-            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 16 }}>
+            <h5 className="gtr-subheading">
+              Data-level recovery <span className="muted" style={{ fontWeight: 400 }}>(directly from incidents, not the model)</span>
+            </h5>
+            <table className="gtr-table">
               <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #ddd" }}>
-                  <th style={{ padding: "4px 6px" }}>Pattern</th>
-                  <th style={{ padding: "4px 6px" }}>Injected</th>
-                  <th style={{ padding: "4px 6px" }}>Observed</th>
+                <tr>
+                  <th>Pattern</th>
+                  <th>Injected</th>
+                  <th>Observed</th>
                 </tr>
               </thead>
               <tbody>
                 {gtr.data_level.map((r, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                    <td style={{ padding: "4px 6px" }}>{r.pattern}</td>
-                    <td style={{ padding: "4px 6px" }}>{r.injected_multiplier}x</td>
-                    <td style={{ padding: "4px 6px", color: Math.abs(r.observed_multiplier - r.injected_multiplier) < 0.2 ? "#2ca25f" : "#333" }}>
+                  <tr key={i}>
+                    <td>{r.pattern}</td>
+                    <td>{r.injected_multiplier}x</td>
+                    <td className={Math.abs(r.observed_multiplier - r.injected_multiplier) < 0.2 ? "gtr-close-match" : ""}>
                       {r.observed_multiplier}x
                     </td>
                   </tr>
@@ -141,9 +136,11 @@ export default function RiskDashboard() {
               </tbody>
             </table>
 
-            <h5 style={{ marginBottom: 4 }}>Model-level recovery <span className="muted" style={{ fontWeight: 400 }}>(from the trained model's own predictions)</span></h5>
+            <h5 className="gtr-subheading">
+              Model-level recovery <span className="muted" style={{ fontWeight: 400 }}>(from the trained model's own predictions)</span>
+            </h5>
             {gtr.model_level.map((r, i) => (
-              <div key={i} style={{ fontSize: 12, marginBottom: 10, padding: 8, background: "#f7f7f9", borderRadius: 6 }}>
+              <div key={i} className="gtr-model-card">
                 <div><strong>{r.pattern}</strong></div>
                 <div>Injected: {r.injected_multiplier}x &nbsp;|&nbsp; Model observed: {r.observed_multiplier}x</div>
                 <div className="muted" style={{ marginTop: 4 }}>{r.note}</div>
