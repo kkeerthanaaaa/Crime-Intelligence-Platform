@@ -1,6 +1,6 @@
-# 🚔 KSP Crime Intelligence Platform
+# 🚔 KSP Hackathon - Crime Intelligence Platform
 
-An AI-powered Crime Intelligence Platform built for Karnataka State Police to visualize crime patterns, detect hotspots, analyze criminal networks, and predict future crime risk using GIS and Machine Learning.
+An AI-powered Crime Intelligence Platform built for Karnataka State Police Hackathon to visualize crime patterns, detect hotspots, analyze criminal networks, and predict future crime risk using GIS and Machine Learning.
 
 ---
 
